@@ -118,7 +118,6 @@ loop:
 		if shouldFlush {
 			if v, ok := s.Processor().(interface{ ProcessEndOfBatch(ctx *Context) }); ok {
 				v.ProcessEndOfBatch(NewContext())
-				// ProcessEndOfBatch should call ClientFlush() internally
 			} else {
 				s.ClientFlush()
 			}
@@ -144,22 +143,20 @@ loop:
 		default:
 		}
 
-		packets, err := s.client.ReadPackets()
+		pk, err := s.client.ReadPacket()
 		if err != nil {
-			s.CloseWithError(fmt.Errorf("failed to read packets from client: %w", err))
+			s.CloseWithError(fmt.Errorf("failed to read packet from client: %w", err))
 			logError(s, "failed to read packets from client", err)
 			break loop
 		}
 
-		if err := handleClientPackets(s, packets); err != nil {
+		if err := handleClientPackets(s, []packet.Packet{pk}); err != nil {
 			s.Server().CloseWithError(fmt.Errorf("failed to write packet to server: %w", err))
 		}
 	}
 }
 
 // handleLatency periodically sends the client's current ping and timestamp to the server for latency reporting.
-// The client's latency is derived from half of RakNet's round-trip time (RTT).
-// To calculate the total latency, we multiply this value by 2.
 func handleLatency(s *Session, interval int64) {
 	ticker := time.NewTicker(time.Millisecond * time.Duration(interval))
 	defer ticker.Stop()
@@ -170,7 +167,11 @@ loop:
 			s.CloseWithError(context.Cause(s.ctx))
 			break loop
 		case <-ticker.C:
-			if err := s.WritePacketToServer(&spectrumpacket.Latency{Latency: s.client.Latency().Milliseconds() * 2, Timestamp: time.Now().UnixMilli(), ClientPacketLoss: float32(s.RakNetClientConn().PacketLossPercentage())}); err != nil {
+			if err := s.WritePacketToServer(&spectrumpacket.Latency{
+				Latency:          s.client.Latency().Milliseconds() * 2,
+				Timestamp:        time.Now().UnixMilli(),
+				ClientPacketLoss: 0,
+			}); err != nil {
 				logError(s, "failed to write latency packet", err)
 			}
 		}

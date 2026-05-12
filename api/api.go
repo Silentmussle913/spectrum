@@ -49,7 +49,7 @@ func NewAPI(registry *session.Registry, logger *slog.Logger, authentication Auth
 		username := pk.(*packet.Transfer).Username
 		addr := pk.(*packet.Transfer).Addr
 		if s := a.registry.GetSessionByUsername(username); s != nil {
-			if err := s.Transfer(addr); err != nil {
+			if err := s.Transfer(session.TransferOptions{Address: addr}); err != nil {
 				a.logger.Error("failed to transfer player", "username", username, "addr", addr, "err", err)
 			}
 		} else {

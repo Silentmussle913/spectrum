@@ -402,6 +402,12 @@ func (s *Session) fallback() (err error) {
 	if err != nil {
 		return err
 	}
+	if addr == "" {
+		return errors.New("no alternate fallback server configured")
+	}
+	if addr == s.serverAddr {
+		return fmt.Errorf("fallback target %q is the current server", addr)
+	}
 
 	if err := s.Transfer(TransferOptions{Address: addr}); err != nil {
 		return err

@@ -1,6 +1,13 @@
 package server
 
-import "github.com/sandertv/gophertunnel/minecraft"
+import (
+	"errors"
+	"strings"
+
+	"github.com/sandertv/gophertunnel/minecraft"
+)
+
+var ErrFallbackDisabled = errors.New("fallback is disabled")
 
 // Discovery defines an interface for discovering servers based on a player's connection.
 type Discovery interface {
@@ -31,5 +38,8 @@ func (s *StaticDiscovery) Discover(_ *minecraft.Conn) (string, error) {
 
 // DiscoverFallback ...
 func (s *StaticDiscovery) DiscoverFallback(_ *minecraft.Conn) (string, error) {
+	if strings.TrimSpace(s.fallbackServer) == "" {
+		return "", ErrFallbackDisabled
+	}
 	return s.fallbackServer, nil
 }

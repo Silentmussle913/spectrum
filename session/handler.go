@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/cooldogedev/spectrum/server"
 	spectrumpacket "github.com/cooldogedev/spectrum/server/packet"
 	"github.com/sandertv/gophertunnel/minecraft/protocol/packet"
 )
@@ -27,13 +28,22 @@ loop:
 		default:
 		}
 
-		server := s.Server()
+		srv := s.Server()
 		select {
-		case <-server.Context().Done():
-			if s.Server() != server {
+		case <-srv.Context().Done():
+			if s.Server() != srv {
 				continue loop
 			}
+			serverErr := context.Cause(srv.Context())
+			if serverErr == nil {
+				serverErr = errors.New("backend server disconnected")
+			}
 			if err := s.fallback(); err != nil {
+				if errors.Is(err, server.ErrFallbackDisabled) {
+					s.CloseWithError(fmt.Errorf("backend server disconnected: %w", serverErr))
+					logError(s, "backend server disconnected", serverErr)
+					break loop
+				}
 				s.CloseWithError(fmt.Errorf("fallback failed: %w", err))
 				logError(s, "failed to fallback to a different server", err)
 				break loop
@@ -42,9 +52,22 @@ loop:
 		default:
 		}
 
-		batch, err := server.ReadPacket()
+		batch, err := srv.ReadPacket()
 		if err != nil {
-			server.CloseWithError(fmt.Errorf("failed to read packet from server: %w", err))
+			srv.CloseWithError(fmt.Errorf("failed to read packet from server: %w", err))
+			if s.Server() != srv {
+				continue loop
+			}
+			if fallbackErr := s.fallback(); fallbackErr != nil {
+				if errors.Is(fallbackErr, server.ErrFallbackDisabled) {
+					s.CloseWithError(fmt.Errorf("failed to read packet from server: %w", err))
+					logError(s, "failed to read packet from server", err)
+					break loop
+				}
+				s.CloseWithError(fmt.Errorf("fallback failed: %w", fallbackErr))
+				logError(s, "failed to fallback to a different server", fallbackErr)
+				break loop
+			}
 			continue loop
 		}
 

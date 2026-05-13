@@ -107,12 +107,14 @@ func (s *Session) LoginContext(ctx context.Context) (err error) {
 		s.logger.Debug("discovery failed", "err", err)
 		return err
 	}
+	s.logger.Info("starting backend login", "target", serverAddr)
 
 	conn, err := s.dial(ctx, serverAddr, server.ConnectOptions{InitialServer: true})
 	if err != nil {
 		s.logger.Debug("dialer failed", "err", err)
 		return err
 	}
+	s.logger.Info("dialed backend", "target", serverAddr)
 
 	s.serverAddr = serverAddr
 	s.serverConn = conn
@@ -120,6 +122,7 @@ func (s *Session) LoginContext(ctx context.Context) (err error) {
 		s.logger.Debug("connection sequence failed", "err", err)
 		return err
 	}
+	s.logger.Info("backend connection sequence completed", "target", serverAddr)
 
 	gameData := conn.GameData()
 	s.processor.ProcessStartGame(NewContext(), &gameData)
@@ -127,8 +130,10 @@ func (s *Session) LoginContext(ctx context.Context) (err error) {
 		s.logger.Debug("startgame sequence failed", "err", err)
 		return err
 	}
+	s.logger.Info("sent start game to client", "target", serverAddr)
 
 	conn.SetReady()
+	s.logger.Info("backend marked ready", "target", serverAddr)
 	if v, ok := s.Processor().(interface{ ProcessLoginSuccessful(ctx *Context) }); ok {
 		v.ProcessLoginSuccessful(NewContext())
 	}

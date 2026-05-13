@@ -501,6 +501,7 @@ func (c *Conn) handleConnectionResponse(pk *packet2.ConnectionResponse) error {
 	c.expect(packet.IDStartGame)
 	c.runtimeID = pk.RuntimeID
 	c.uniqueID = pk.UniqueID
+	c.logger.Info("received backend connection response")
 	c.logger.Debug("received connection_response, expecting start_game")
 	return nil
 }
@@ -541,6 +542,7 @@ func (c *Conn) handleStartGame(pk *packet.StartGame) error {
 		Experiments:                  pk.Experiments,
 		UseBlockNetworkIDHashes:      pk.UseBlockNetworkIDHashes,
 	}
+	c.logger.Info("received backend start game", "world", pk.WorldName)
 	c.logger.Debug("received start_game, expecting item_registry")
 	return nil
 }
@@ -559,6 +561,7 @@ func (c *Conn) handleItemRegistry(pk *packet.ItemRegistry) error {
 	if err := c.WritePacket(&packet.RequestChunkRadius{ChunkRadius: 16}); err != nil {
 		return err
 	}
+	c.logger.Info("received backend item registry and requested chunk radius")
 	c.logger.Debug("received item_registry, expecting chunk_radius_updated")
 	return nil
 }
@@ -569,6 +572,7 @@ func (c *Conn) handleChunkRadiusUpdated(pk *packet.ChunkRadiusUpdated) error {
 	c.deferPacket(pk)
 	c.expect(packet.IDPlayStatus)
 	c.gameData.ChunkRadius = pk.ChunkRadius
+	c.logger.Info("received backend chunk radius updated", "chunk_radius", pk.ChunkRadius)
 	c.logger.Debug("received chunk_radius_updated, expecting play_status")
 	return nil
 }
@@ -583,6 +587,7 @@ func (c *Conn) handlePlayStatus(pk *packet.PlayStatus) error {
 		}
 	}
 	close(c.connected)
+	c.logger.Info("received backend play status", "status", pk.Status)
 	c.logger.Debug("received play_status, finalizing connection sequence")
 	return nil
 }
